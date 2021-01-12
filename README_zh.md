@@ -4,6 +4,18 @@ Message 是 CPChain DApp 生态中的基础消息服务，提供加密通信功�
 
 用户可通过 Identity Dapp 获取通信对象的公钥，然后使用其公钥对信息进行加密，加密后通过 Message 进行消息投递（消息通过事件发出）。通信对象收到消息后，使用 Identity 的私钥进行消息解密，从而实现加密通信。
 
+## 部署合约
+
+```bash
+
+make build
+
+build/main message deploy --keystore ./dapps-admin/keystore/ --endpoint http://52.220.174.168:8501
+
+```
+
+合约地址： 0x856c36486163dB6f9aEbeD1407a3c6C51FD7566E
+
 ## 合约方法
 
 + `sendMessage(to: address, message: string)`: 发送消息
@@ -26,5 +38,16 @@ Message 是 CPChain DApp 生态中的基础消息服务，提供加密通信功�
 {
     "message": "message"
 }
+
+```
+
+## Cli 测试
+
+```bash
+
+# 发送消息
+build/main message send --to d7b93566d41b6dc3858b8dace06a63ac8f272c81 --msg "HelloWorld" --keystore ./dapps-admin/keystore/ --endpoint http://52.220.174.168:8501 --contractaddr 0x856c36486163dB6f9aEbeD1407a3c6C51FD7566E
+
+build/main message show-configs --keystore ./dapps-admin/keystore/ --endpoint http://52.220.174.168:8501 --contractaddr 0x856c36486163dB6f9aEbeD1407a3c6C51FD7566E
 
 ```
