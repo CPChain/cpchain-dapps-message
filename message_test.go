@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/big"
 	"testing"
+	"time"
 
 	"message"
 
@@ -43,6 +44,82 @@ func TestDeployAndRegister(t *testing.T) {
 		candidateAddr:  {Balance: new(big.Int).Mul(big.NewInt(1000000), big.NewInt(configs.Cpc))},
 		candidate2Addr: {Balance: new(big.Int).Mul(big.NewInt(1000000), big.NewInt(configs.Cpc))}})
 	_, instance := deploy(ownerKey, contractBackend)
-	_ = instance
 
+	ch := make(chan *message.MessageNewMessage)
+	done := make(chan struct{})
+	if _, err := instance.WatchNewMessage(nil, ch); err != nil {
+		t.Fatal(err)
+	}
+
+	watched := false
+
+	go func() {
+		for {
+			select {
+			case e := <-ch:
+				watched = true
+				if e.From.Hex() != candidateAddr.Hex() {
+					t.Error("FROM error")
+				}
+				if e.RecvID.Int64() != 1 {
+					t.Error("the first recvID should be 1")
+				}
+				if e.SentID.Int64() != 1 {
+					t.Error("the first sentID should be 1")
+				}
+			case <-done:
+				return
+			}
+		}
+	}()
+
+	// send message
+	sendMsg(t, instance, candidateKey, candidate2Addr, "Hello world")
+	contractBackend.Commit()
+
+	// check count
+	checkNum(t, instance, 1)
+
+	sentCnt, _ := instance.SentCount(nil, candidateAddr)
+	if sentCnt.Int64() != 1 {
+		t.Error("sentCnt should be 1")
+	}
+
+	recvCnt, _ := instance.ReceivedCount(nil, candidate2Addr)
+	if recvCnt.Int64() != 1 {
+		t.Error("receivedCnt should be 1")
+	}
+
+	// wait
+	<-time.After(1 * time.Second)
+	done <- struct{}{}
+
+	if !watched {
+		t.Error("Not watched the event")
+	}
+}
+
+func sendMsg(t *testing.T, instance *message.Message, key *ecdsa.PrivateKey, to common.Address, message string) {
+	txOpts := bind.NewKeyedTransactor(key)
+	txOpts.GasLimit = uint64(50000000)
+	txOpts.Value = big.NewInt(0)
+	_, err := instance.SendMessage(txOpts, to, message)
+	if err != nil {
+		t.Fatal("register failed:", err)
+	}
+}
+
+func checkError(t *testing.T, title string, err error) {
+	if err != nil {
+		t.Fatal(title, ":", err)
+	}
+}
+
+func checkNum(t *testing.T, instance *message.Message, amount int) {
+	num, err := instance.Count(nil)
+	checkError(t, "get num", err)
+
+	if num.Cmp(new(big.Int).SetInt64(int64(amount))) != 0 {
+		t.Errorf("message's num %d != %d", num, amount)
+	}
 }

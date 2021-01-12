@@ -7,17 +7,19 @@ import (
 	"math/big"
 	"strings"
 
+	cpchain "bitbucket.org/cpchain/chain"
 	"bitbucket.org/cpchain/chain/accounts/abi"
 	"bitbucket.org/cpchain/chain/accounts/abi/bind"
 	"bitbucket.org/cpchain/chain/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/event"
 )
 
 // MessageABI is the input ABI used to generate the binding from.
-const MessageABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"count\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"enabled\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"enableContract\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"disableContract\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"}]"
+const MessageABI = "[{\"constant\":true,\"inputs\":[],\"name\":\"count\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"enabled\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"enableContract\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"receivedCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"disableContract\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"addr\",\"type\":\"address\"}],\"name\":\"sentCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"to\",\"type\":\"address\"},{\"name\":\"message\",\"type\":\"string\"}],\"name\":\"sendMessage\",\"outputs\":[],\"payable\":true,\"stateMutability\":\"payable\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"name\":\"from\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"to\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"sentID\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"recvID\",\"type\":\"uint256\"},{\"indexed\":false,\"name\":\"message\",\"type\":\"string\"}],\"name\":\"NewMessage\",\"type\":\"event\"}]"
 
 // MessageBin is the compiled bytecode used for deploying new contracts.
-const MessageBin = `0x60806040526000805460a060020a60ff0219167401000000000000000000000000000000000000000017815560015534801561003a57600080fd5b5060008054600160a060020a031916331790556101d48061005c6000396000f3006080604052600436106100615763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166306661abd8114610066578063238dafe01461008d578063367edd32146100b6578063894ba833146100cd575b600080fd5b34801561007257600080fd5b5061007b6100e2565b60408051918252519081900360200190f35b34801561009957600080fd5b506100a26100e8565b604080519115158252519081900360200190f35b3480156100c257600080fd5b506100cb610109565b005b3480156100d957600080fd5b506100cb610164565b60015490565b60005474010000000000000000000000000000000000000000900460ff1681565b60005473ffffffffffffffffffffffffffffffffffffffff16331461012d57600080fd5b6000805474ff0000000000000000000000000000000000000000191674010000000000000000000000000000000000000000179055565b60005473ffffffffffffffffffffffffffffffffffffffff16331461018857600080fd5b6000805474ff0000000000000000000000000000000000000000191690555600a165627a7a723058202d099228ced67d4aa1845cb7b1ec8f16f2502325112c33719714eecfd730c2090029`
+const MessageBin = `0x60806040526000805460a060020a60ff0219167401000000000000000000000000000000000000000017815560015534801561003a57600080fd5b5060008054600160a060020a031916331790556103d78061005c6000396000f3006080604052600436106100825763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166306661abd8114610087578063238dafe0146100ae578063367edd32146100d757806360792829146100ee578063894ba8331461010f578063d6d8a23a14610124578063de6f24bb14610145575b600080fd5b34801561009357600080fd5b5061009c61019f565b60408051918252519081900360200190f35b3480156100ba57600080fd5b506100c36101a5565b604080519115158252519081900360200190f35b3480156100e357600080fd5b506100ec6101c6565b005b3480156100fa57600080fd5b5061009c600160a060020a0360043516610214565b34801561011b57600080fd5b506100ec61022f565b34801561013057600080fd5b5061009c600160a060020a0360043516610266565b60408051602060046024803582810135601f81018590048502860185019096528585526100ec958335600160a060020a03169536956044949193909101919081908401838280828437509497506102819650505050505050565b60015490565b60005474010000000000000000000000000000000000000000900460ff1681565b600054600160a060020a031633146101dd57600080fd5b6000805474ff0000000000000000000000000000000000000000191674010000000000000000000000000000000000000000179055565b600160a060020a031660009081526003602052604090205490565b600054600160a060020a0316331461024657600080fd5b6000805474ff000000000000000000000000000000000000000019169055565b600160a060020a031660009081526002602052604090205490565b60005474010000000000000000000000000000000000000000900460ff1615156102aa57600080fd5b6001805481018155336000818152600260209081526040808320805486018155600160a060020a0388168085526003845282852080549097019687905590548251868152808501929092529181018290526060810186905260a06080820181815288519183019190915287517fb11b470cd1e7e24bdb3a4b2a0e4b1e5de9221663e94920c122f585cb1e5f9027978a96949590948a94939260c08501928601918190849084905b83811015610369578181015183820152602001610351565b50505050905090810190601f1680156103965780820380516001836020036101000a031916815260200191505b50965050505050505060405180910390a150505600a165627a7a723058208c3cc1e4938a33403850bc02f4378de5d0279f5fb337a77905f9e6ce7984facb0029`
 
 // DeployMessage deploys a new cpchain contract, binding an instance of Message to it.
 func DeployMessage(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Message, error) {
@@ -226,6 +228,58 @@ func (_Message *MessageCallerSession) Enabled() (bool, error) {
 	return _Message.Contract.Enabled(&_Message.CallOpts)
 }
 
+// ReceivedCount is a free data retrieval call binding the contract method 0x60792829.
+//
+// Solidity: function receivedCount(addr address) constant returns(uint256)
+func (_Message *MessageCaller) ReceivedCount(opts *bind.CallOpts, addr common.Address) (*big.Int, error) {
+	var (
+		ret0 = new(*big.Int)
+	)
+	out := ret0
+	err := _Message.contract.Call(opts, out, "receivedCount", addr)
+	return *ret0, err
+}
+
+// ReceivedCount is a free data retrieval call binding the contract method 0x60792829.
+//
+// Solidity: function receivedCount(addr address) constant returns(uint256)
+func (_Message *MessageSession) ReceivedCount(addr common.Address) (*big.Int, error) {
+	return _Message.Contract.ReceivedCount(&_Message.CallOpts, addr)
+}
+
+// ReceivedCount is a free data retrieval call binding the contract method 0x60792829.
+//
+// Solidity: function receivedCount(addr address) constant returns(uint256)
+func (_Message *MessageCallerSession) ReceivedCount(addr common.Address) (*big.Int, error) {
+	return _Message.Contract.ReceivedCount(&_Message.CallOpts, addr)
+}
+
+// SentCount is a free data retrieval call binding the contract method 0xd6d8a23a.
+//
+// Solidity: function sentCount(addr address) constant returns(uint256)
+func (_Message *MessageCaller) SentCount(opts *bind.CallOpts, addr common.Address) (*big.Int, error) {
+	var (
+		ret0 = new(*big.Int)
+	)
+	out := ret0
+	err := _Message.contract.Call(opts, out, "sentCount", addr)
+	return *ret0, err
+}
+
+// SentCount is a free data retrieval call binding the contract method 0xd6d8a23a.
+//
+// Solidity: function sentCount(addr address) constant returns(uint256)
+func (_Message *MessageSession) SentCount(addr common.Address) (*big.Int, error) {
+	return _Message.Contract.SentCount(&_Message.CallOpts, addr)
+}
+
+// SentCount is a free data retrieval call binding the contract method 0xd6d8a23a.
+//
+// Solidity: function sentCount(addr address) constant returns(uint256)
+func (_Message *MessageCallerSession) SentCount(addr common.Address) (*big.Int, error) {
+	return _Message.Contract.SentCount(&_Message.CallOpts, addr)
+}
+
 // DisableContract is a paid mutator transaction binding the contract method 0x894ba833.
 //
 // Solidity: function disableContract() returns()
@@ -266,6 +320,153 @@ func (_Message *MessageSession) EnableContract() (*types.Transaction, error) {
 // Solidity: function enableContract() returns()
 func (_Message *MessageTransactorSession) EnableContract() (*types.Transaction, error) {
 	return _Message.Contract.EnableContract(&_Message.TransactOpts)
+}
+
+// SendMessage is a paid mutator transaction binding the contract method 0xde6f24bb.
+//
+// Solidity: function sendMessage(to address, message string) returns()
+func (_Message *MessageTransactor) SendMessage(opts *bind.TransactOpts, to common.Address, message string) (*types.Transaction, error) {
+	return _Message.contract.Transact(opts, "sendMessage", to, message)
+}
+
+// SendMessage is a paid mutator transaction binding the contract method 0xde6f24bb.
+//
+// Solidity: function sendMessage(to address, message string) returns()
+func (_Message *MessageSession) SendMessage(to common.Address, message string) (*types.Transaction, error) {
+	return _Message.Contract.SendMessage(&_Message.TransactOpts, to, message)
+}
+
+// SendMessage is a paid mutator transaction binding the contract method 0xde6f24bb.
+//
+// Solidity: function sendMessage(to address, message string) returns()
+func (_Message *MessageTransactorSession) SendMessage(to common.Address, message string) (*types.Transaction, error) {
+	return _Message.Contract.SendMessage(&_Message.TransactOpts, to, message)
+}
+
+// MessageNewMessageIterator is returned from FilterNewMessage and is used to iterate over the raw logs and unpacked data for NewMessage events raised by the Message contract.
+type MessageNewMessageIterator struct {
+	Event *MessageNewMessage // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log       // Log channel receiving the found contract events
+	sub  cpchain.Subscription // Subscription for errors, completion and termination
+	done bool                 // Whether the subscription completed delivering logs
+	fail error                // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *MessageNewMessageIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(MessageNewMessage)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(MessageNewMessage)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *MessageNewMessageIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *MessageNewMessageIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// MessageNewMessage represents a NewMessage event raised by the Message contract.
+type MessageNewMessage struct {
+	From    common.Address
+	To      common.Address
+	SentID  *big.Int
+	RecvID  *big.Int
+	Message string
+	Raw     types.Log // Blockchain specific contextual infos
+}
+
+// FilterNewMessage is a free log retrieval operation binding the contract event 0xb11b470cd1e7e24bdb3a4b2a0e4b1e5de9221663e94920c122f585cb1e5f9027.
+//
+// Solidity: e NewMessage(from address, to address, sentID uint256, recvID uint256, message string)
+func (_Message *MessageFilterer) FilterNewMessage(opts *bind.FilterOpts) (*MessageNewMessageIterator, error) {
+
+	logs, sub, err := _Message.contract.FilterLogs(opts, "NewMessage")
+	if err != nil {
+		return nil, err
+	}
+	return &MessageNewMessageIterator{contract: _Message.contract, event: "NewMessage", logs: logs, sub: sub}, nil
+}
+
+// WatchNewMessage is a free log subscription operation binding the contract event 0xb11b470cd1e7e24bdb3a4b2a0e4b1e5de9221663e94920c122f585cb1e5f9027.
+//
+// Solidity: e NewMessage(from address, to address, sentID uint256, recvID uint256, message string)
+func (_Message *MessageFilterer) WatchNewMessage(opts *bind.WatchOpts, sink chan<- *MessageNewMessage) (event.Subscription, error) {
+
+	logs, sub, err := _Message.contract.WatchLogs(opts, "NewMessage")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(MessageNewMessage)
+				if err := _Message.contract.UnpackLog(event, "NewMessage", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
 }
 
 // SafeMathABI is the input ABI used to generate the binding from.
