@@ -36,10 +36,13 @@ build/main message deploy --keystore ./dapps-admin/keystore/ --endpoint http://5
 ```json
 
 {
-    "message": "message"
+    "message": "message",
+    "version": "1.0"
 }
 
 ```
+
++ *version 用于客户端消息处理方式的版本控制*
 
 ## Cli 测试
 
