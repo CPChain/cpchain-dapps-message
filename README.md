@@ -52,6 +52,21 @@ Message content need to be encoded in JSON, required fields as below:
 
 + *version is for the parser on the client*
 
+### Version 2.0
+
+Now, the latest CPC-Wallet(v1.4.3) support you send `password` to others.
+
+```json
+
+{
+    "message": "message",
+    "type": "password",
+    "version": "2.0"
+}
+
+
+```
+
 ## Test with Cli
 
 ```bash
