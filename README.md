@@ -4,21 +4,15 @@ Message DApp is the fundamental DApp of the CPChain DApp Ecosystem, you can use 
 
 The sender can get the public key of the receiver from [Identity]((https://github.com/CPChain/cpchain-dapps-identity)), then use the public key encrypts the message, send the message via contract (Contract will emit an event). When the receiver gets the message, use their own private key to decrypted the message.
 
-## Compile Contract
+## Setup
 
 ```bash
 
-make compile
+npm install
 
-```
+# test
+truffle test
 
-## Deploy Contract
-
-```bash
-
-make build
-
-build/main message deploy --keystore ./dapps-admin/keystore/ --endpoint http://52.220.174.168:8501
 
 ```
 
