@@ -1,8 +1,8 @@
 # CPChain DApp - Message
 
-Message DApp is the fundamental DApp of the CPChain DApp Ecosystem, you can use this DApp to send and receive encrypted messae，This DApp base on [Identity DApp](https://github.com/CPChain/cpchain-dapps-identity).
+Message DApp is the fundamental DApp of the CPChain DApp Ecosystem, you can use this DApp to send and receive encrypted messages, This DApp based on [Identity DApp](https://github.com/CPChain/cpchain-dapps-identity).
 
-The sender can get the public key of the receiver from [Identity]((https://github.com/CPChain/cpchain-dapps-identity)), then use the public key encrypts the message, send the message via contract (Contract will emit an event). When the receiver gets the message, use their own private key to decrypted the message.
+The sender can get the public key of the receiver from [Identity]((https://github.com/CPChain/cpchain-dapps-identity)), then use the public key encrypts the message, send the message via contract (Contract will emit an event). When the receiver gets the message, use their own private key to decrypt the message.
 
 ## Setup
 
